@@ -1,38 +1,25 @@
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from category_encoders import TargetEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
-def build_preprocessor(X):
-    """Build preprocessing pipeline for numeric and categorical features."""
+def preprocess_data(df):
+    df = df.copy()
 
-    # Identify feature types
-    numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
-    categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
+    # Fill missing values
+    df.fillna(0, inplace=True)
 
-    # Remove target column if present
+    # Convert all categorical columns using LabelEncoder
+    for col in df.select_dtypes(include=["object"]).columns:
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col].astype(str))
+
+    # Scale numeric columns (except target)
+    scaler = StandardScaler()
+    numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
+
     if "is_claim" in numeric_cols:
-        numeric_cols.remove("is_claim")
+        numeric_cols = numeric_cols.drop("is_claim")
 
-    # Split categorical into low and high cardinality
-    low_card = [col for col in categorical_cols if X[col].nunique() <= 10]
-    high_card = [col for col in categorical_cols if X[col].nunique() > 10]
+    df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
 
-    print("Low-card categorical:", low_card[:5], "...")
-    print("High-card categorical:", high_card[:5], "...")
-
-    # Transformers
-    numeric_transformer = StandardScaler()
-    low_card_transformer = OneHotEncoder(handle_unknown="ignore")
-    high_card_transformer = TargetEncoder()
-
-    # Column transformer
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", numeric_transformer, numeric_cols),
-            ("low_cat", low_card_transformer, low_card),
-            ("high_cat", high_card_transformer, high_card)
-        ]
-    )
-
-    return preprocessor
+    print("Preprocessing done")
+    return df

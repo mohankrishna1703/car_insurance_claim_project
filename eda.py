@@ -1,37 +1,60 @@
-import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
+import os
+from load_data import load_data
 
-def run_eda():
-    train = pd.read_csv("data/train.csv")
-    test = pd.read_csv("data/test.csv")
+def perform_eda():
+    # Step 1: Load data
+    df = load_data("train_data")
+    print(f"\nLoaded {len(df)} rows for EDA.\n")
 
-    print("Train shape:", train.shape)
-    print("Test shape:", test.shape)
+    # Create 'plots' folder if not exists
+    os.makedirs("plots", exist_ok=True)
 
-    print("\nTrain columns:\n", train.columns.tolist())
+    # Step 2: Basic info
+    print("Dataset Info:")
+    print(df.info())
 
-    # Target balance
-    target_dist = train["is_claim"].value_counts(normalize=True) * 100
-    print("\nTarget balance:\n", target_dist)
+    print("\nStatistical Summary:")
+    print(df.describe())
 
-    # Save target distribution plot
-    plt.figure(figsize=(6,4))
-    sns.countplot(x="is_claim", data=train)
-    plt.title("Target Distribution (is_claim)")
-    plt.savefig("eda_target_distribution.png")
-    plt.close()
+    # Check for missing values
+    missing = df.isnull().sum()
+    print("\nMissing Values per Column:")
+    print(missing[missing > 0])
 
-    # Numeric vs target
-    numeric_cols = train.select_dtypes(include=["int64", "float64"]).columns.tolist()
-    for col in numeric_cols[:10]:
-        plt.figure(figsize=(6,4))
-        sns.histplot(data=train, x=col, hue="is_claim", kde=True, bins=30)
-        plt.title(f"{col} vs is_claim")
-        plt.savefig(f"eda_{col}_vs_claim.png")
+    # Claim Distribution Plot
+    if "is_claim" in df.columns:
+        plt.figure(figsize=(5, 4))
+        sns.countplot(x="is_claim", data=df, palette="Set2")
+        plt.title("Claim Distribution")
+        plt.xlabel("Is Claim (0 = No, 1 = Yes)")
+        plt.ylabel("Count")
+        plt.tight_layout()
+        plt.savefig("plots/eda_claim_distribution.png")
         plt.close()
+        print("Saved: plots/eda_claim_distribution.png")
 
-    print("\nEDA complete. Figures saved as PNG files in project folder.")
+    # Correlation Heatmap (numeric only)
+    numeric_cols = df.select_dtypes(include=["int64", "float64"])
+    if not numeric_cols.empty:
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(numeric_cols.corr(), cmap="coolwarm", annot=False)
+        plt.title("Feature Correlation Heatmap")
+        plt.tight_layout()
+        plt.savefig("plots/eda_correlation_heatmap.png")
+        plt.close()
+        print("Saved: plots/eda_correlation_heatmap.png")
+
+    # Distribution of numeric features
+    num_cols = numeric_cols.columns[:5]  # only a few to keep simple
+    df[num_cols].hist(figsize=(10, 8), bins=20, color="skyblue")
+    plt.suptitle("Numeric Feature Distributions")
+    plt.tight_layout()
+    plt.savefig("plots/eda_numeric_distributions.png")
+    plt.close()
+    print("Saved: plots/eda_numeric_distributions.png")
 
 if __name__ == "__main__":
-    run_eda()
+    perform_eda()
